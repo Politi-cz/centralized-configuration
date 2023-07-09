@@ -22,5 +22,20 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
 
+      - name: Restore SQL Server Image Cache if it exists
+        id: cache-docker-sqlserver
+        uses: actions/cache@v3
+        with:
+          path: ci/cache/docker/sqlserver
+          key: cache-docker-sqlserver-2022-latest
+
+      - name: Update SQL Server Image Cache if cache miss
+        if: steps.cache-docker-sqlserver.outputs.cache-hit != 'true'
+        run: docker pull mcr.microsoft.com/mssql/server:2022-latest && mkdir -p ci/cache/docker/sqlserver && docker image save mcr.microsoft.com/mssql/server:2022-latest --output ./ci/cache/docker/sqlserver/sqlserver-2022-latest.tar
+
+      - name: Use SQL Server Image Cache if cache hit
+        if: steps.cache-docker-sqlserver.outputs.cache-hit == 'true'
+        run: docker image load --input ./ci/cache/docker/sqlserver/sqlserver-2022-latest.tar
+
       - name: Test
         run: dotnet test -l "console;verbosity=normal" --no-build --no-restore
